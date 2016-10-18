@@ -1,0 +1,6 @@
+[submodule "DeepLearnToolbox"]
+	path = DeepLearnToolbox
+	url = git@github.com:vaulttech/DeepLearnToolbox.git
+[submodule "CDBN"]
+	path = CDBN
+	url = git@github.com:vaulttech/CDBN.git
