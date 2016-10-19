@@ -32,8 +32,8 @@ function [cnn, errors] = run_networks_yahoo(dataset_folder, mode)
             pooling_sizes{1} = [2 1];
             pooling_sizes{2} = [2 1];
             n_epochs = [2 2];
-            input_types{1} = 'Gaussian';
-            input_types{2} = 'Gaussian';
+            input_types{1} = 'Binary';
+            input_types{2} = 'Binary';
             cdbn_layers = CDBN_init(train_wins, filter_sizes, ...
                                     pooling_sizes, n_epochs, input_types);
 
@@ -62,7 +62,7 @@ end
 function [train_wins, train_wins_labels, ...
                 test_wins, test_wins_labels] = read_yahoo_file(file_name)
     % Reads a csv file from the Yahoo! dataset
-    file_name = './project_code/yahoo_dataset/A1Benchmark/real_4.csv';
+    file_name = './yahoo_dataset/A1Benchmark/real_4.csv';
     fprintf('Reading file "%s"\n', file_name);
     
     csv_data = csvread(file_name, 1);

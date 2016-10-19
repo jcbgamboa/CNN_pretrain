@@ -7,8 +7,8 @@ function [cnn, errors] = run_networks_mnist(...
     % 0: Random weight initialization
     % 1: Pretrain with CDBN and use its weights to initialize the CNN
     % 2: Pretrain with DBN and use its weights to initialize the CNN
-    % 3: Pretrain with CAE (using python) and use its weights to initialize the
-    %       CNN.
+    % 3: Pretrain with CAE (using python) and use its weights to initialize
+    %       the CNN.
     % 4: Intercalate training with CDBN and CNN, using the weights of one of
     %       them to initialize the other.
 
