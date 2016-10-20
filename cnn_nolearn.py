@@ -2,8 +2,6 @@
 
 from __future__ import print_function
 
-print("Importing libraries...")
-
 import os, sys, urllib, gzip
 try:
     import cPickle as pickle
@@ -148,7 +146,7 @@ def create_networknl(sliding_window_length = 10):
 	print("Creating Neural Network...")
 	netnl = nolearn.lasagne.NeuralNet(
 		layers = layers,
-		max_epochs = 1000,
+		max_epochs = 50,
 
 		update = lasagne.updates.nesterov_momentum,
 		update_learning_rate = 0.001,
@@ -164,21 +162,14 @@ def train_networknl(netnl, train_wins, train_wins_labels):
 	print("Training Neural Network...")
 	return netnl.fit(train_wins, train_wins_labels)
 
-def print_errors_networknl(y_pred, test_wins_labels):
-	error = y_pred - test_wins_labels
-	for i, _ in enumerate(y_pred):
-		print("y: {a}\ty_pred: {b}\terror: {c}".format(
-			a=test_wins_labels[i], b=y_pred[i], c=error[i]))
-	print(error)
-
 def run_networknl(netnl, train_wins, train_wins_labels,
 			test_wins, test_wins_labels):
-	netnl(train_networknl(netnl, train_wins, train_wins_labels))
+	netnl = train_networknl(netnl, train_wins, train_wins_labels)
 
 	print("Testing Neural Network...")
 	y_pred = netnl.predict(test_wins)
 
-	print_errors_networknl(y_pred, test_wins_labels)
+	print_errors_network(test_wins_labels, y_pred)
 
 
 # -------------------------------------------------------------- LASAGNE NETWORK
@@ -186,9 +177,10 @@ def run_networknl(netnl, train_wins, train_wins_labels,
 # Here, `lg` indicates "lasagne". It is here in opposition to `nl` in the rest
 # of the code, above, which mean "nolearn" (i.e., using `nolearn`)
 
-def create_networklg(sliding_window_length):
+def create_networklg(input_var, sliding_window_length):
 	netlg = lasagne.layers.InputLayer(
-			shape = (None, 1, sliding_window_length)
+			shape = (None, 1, sliding_window_length),
+			input_var = input_var
 		)
 
 	netlg = Conv1DLayerFast(
@@ -232,18 +224,18 @@ def loss_sum_of_squared_errorslg(prediction, target_var):
 	# Reduces the vector (aggregate) by summing its values. 
 	return lasagne.objectives.aggregate(loss, mode='sum')
 
-def train_networklg(netlg, target_var,
-			train_wins, train_wins_labels):
+def train_networklg(netlg, input_var, target_var,
+			train_wins, train_wins_labels, batch_size):
 	# Because Theano is symbolic, we need to define some variables here
 	# - `prediction` is whatever the network will output
 	# - `loss` is out training loss (which we want to minimize)
 	# - `params` are the variables we can change in the network (e.g.,
 	#	connection weights and biases)
 	# - `updates` is how to change it (lasagne offers some options already)
-
+	print("Defining training symbols")
 	prediction = lasagne.layers.get_output(netlg)
 	loss = loss_sum_of_squared_errorslg(prediction, target_var)
-	params = lasagne.layers.get_all_params_values(netlg, trainable=True)
+	params = lasagne.layers.get_all_params(netlg, trainable=True)
 
 	# The default parameters of the lasagne's implementation of the Adam
 	# optimizer are exactly the same as those from TensorFlow
@@ -251,23 +243,102 @@ def train_networklg(netlg, target_var,
 
 	# To monitoring the progress of the network, lasagne's tutorial suggest
 	# the definition of these variables
+	print("Defining validation symbols")
 	test_prediction = lasagne.layers.get_output(netlg, deterministic=True)
 	test_loss = loss_sum_of_squared_errorslg(test_prediction, target_var)
 
+	print("Compiling functions")
+	training_function = theano.function([input_var, target_var],
+					loss, updates = updates)
+	validation_function = theano.function([input_var, target_var],
+					[test_loss, prediction])
 
-def print_errors_networklg(y_pred, test_wins_labels):
-	pass
+	# Finally, actually trains the network
+	num_iterations = 100
+	print("Actually training")
+	for epoch in range(num_iterations):
+		train_err = 0
+		for batch in iterate_minibatcheslg(train_wins,
+					train_wins_labels, batch_size):
+			inputs, targets = batch
+			train_err += training_function(inputs, targets)
 
-def run_networklg(netlg, train_wins, train_wins_labels,
+		print("Epoch: {}\tSum of Squared Errors: {}".format(
+			epoch, train_err))
+
+	return validation_function
+
+def iterate_minibatcheslg(wins, wins_labels, batch_size):
+	# A lot based on `iterate_minibatches()` from the Lasagne tutorial
+	for start_idx in range(0, len(wins), batch_size):
+		curr_elems = slice(start_idx, start_idx + batch_size)
+		#print("yielding elements {} to {}".format(
+		#	start_idx, start_idx + batch_size))
+		yield wins[curr_elems], wins_labels[curr_elems]
+
+def test_networklg(netlg, input_var, target_var, validation_function,
+			test_wins, test_wins_labels, batch_size):
+	test_err = 0
+	predictions = []
+
+	#print("Length of test_wins: {}".format(len(test_wins)))
+
+	for batch in iterate_minibatcheslg(test_wins,
+					test_wins_labels, batch_size):
+		inputs, targets = batch
+		(err, prediction) = validation_function(inputs, targets)
+		test_err += err
+		for i in prediction:
+			predictions.append(i)
+
+	return test_err, predictions
+
+def run_networklg(train_wins, train_wins_labels,
 			test_wins, test_wins_labels):
 
-	input_var = T.tensor4('inputs')
-	target_var = T.ivector('targets')
+	input_var = T.tensor3('inputs')
+	target_var = T.fcol('targets')
+	batch_size = 20
 
-	netlg = create_networklg(sliding_window_length)
+	#print("Will create Lasagne network")
+	netlg = create_networklg(input_var, sliding_window_length)
 
+	#print("Will train network")
+	validation_function = train_networklg(netlg, input_var, target_var,
+				train_wins, train_wins_labels, batch_size)
+
+	test_err, predictions = test_networklg(netlg, input_var, target_var,
+			validation_function, test_wins, test_wins_labels, batch_size)
+	#print(test_err)
+	#print("Length of predictions: {}".format(len(predictions)))
+
+	print_errors_network(test_wins_labels, predictions)
+	plot_actual_and_predicted("./comparison.png", test_wins_labels, predictions)
 
 # ---------------------------------------------------------------- MAIN FUNCTION
+
+def plot_actual_and_predicted(file_name, y, pred):
+	fig = plt.figure()
+	ax = fig.add_subplot(211)
+	ax.plot(y)
+	plt.ylabel('Time Series Values')
+	plt.grid(True)
+	plt.title('Actual and Predicted Values of TS')
+
+	ax = fig.add_subplot(212)
+	ax.plot(pred, color='r')
+	plt.ylabel('Predicted Time Series Values')
+	plt.xlabel('Number of Timestamps')
+	plt.grid(True)
+
+	fig.savefig(file_name, edgecolor=None)
+
+def print_errors_network(test_wins_labels, y_pred):
+	error = y_pred - test_wins_labels
+	for i, _ in enumerate(y_pred):
+		print("y: {a}\ty_pred: {b}\terror: {c}".format(
+			a=test_wins_labels[i], b=y_pred[i], c=error[i]))
+	print(error)
 
 if __name__ == '__main__':
 	sliding_window_length = 10
@@ -288,8 +359,8 @@ if __name__ == '__main__':
 	#run_networknl(netnl, train_wins, train_wins_labels,
 	#		test_wins, test_wins_labels)
 
-	netlg = create_networklg(sliding_window_length)
-	run_networklg(netlg, train_wins, train_wins_labels,
+	print("Will run network")
+	run_networklg(train_wins, train_wins_labels,
 			test_wins, test_wins_labels)
 
 
