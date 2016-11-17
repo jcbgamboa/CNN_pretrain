@@ -22,9 +22,9 @@ function run_networks_yahoo(dataset_folder, mode)
             filter_sizes{2} = [5 1];
             pooling_sizes{1} = [1 1];
             pooling_sizes{2} = [1 1];
-            n_epochs = [2 2];
-            input_types{1} = 'Binary';
-            input_types{2} = 'Binary';
+            n_epochs = [50 50];
+            input_types{1} = 'Gaussian';
+            input_types{2} = 'Gaussian';
             cdbn_layers = CDBN_init(train_wins, filter_sizes, ...
                                     pooling_sizes, n_epochs, input_types);
 

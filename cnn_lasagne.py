@@ -117,7 +117,7 @@ def create_networknl(sliding_window_length = 10):
 				'num_filters': 20,
 				'filter_size': sliding_window_length,
 				'pad':'same',
-				'nonlinearity': lasagne.nonlinearities.rectify,
+				'nonlinearity': lasagne.nonlinearities.very_leaky_rectify,
 				'W':lasagne.init.Normal(0.1),
 				'b':lasagne.init.Constant(1)
 			}),
@@ -127,7 +127,7 @@ def create_networknl(sliding_window_length = 10):
 				'num_filters': 10,
 				'filter_size': sliding_window_length,
 				'pad':'same',
-				'nonlinearity': lasagne.nonlinearities.rectify,
+				'nonlinearity': lasagne.nonlinearities.very_leaky_rectify,
 				'W':lasagne.init.Normal(0.1),
 				'b':lasagne.init.Constant(1)
 			}),
@@ -191,8 +191,17 @@ def create_networklg(input_var, sliding_window_length,
 		last_size = 2
 		pad = 'valid'
 
-	#if ("weights" in mode):
-	#	initialize some weights here...
+	W1 = lasagne.init.Normal(0.1)
+	W2 = lasagne.init.Normal(0.1)
+	b1 = lasagne.init.Constant(1)
+	b2 = lasagne.init.Constant(1)
+	if (("weights" in mode) and (weights is not None)):
+		W1 = np.squeeze(np.transpose(weights[0], axes=[1,3,2,0]),
+				axis=(0,)).astype(np.float32)
+		b1 = np.squeeze(weights[1]).astype(np.float32)
+		W2 = np.squeeze(np.transpose(weights[2], axes=[1,3,2,0]),
+				axis=(0,)).astype(np.float32)
+		b2 = np.squeeze(weights[3]).astype(np.float32)
 
 	netlg = lasagne.layers.InputLayer(
 			shape = (None, 1, sliding_window_length),
@@ -204,8 +213,8 @@ def create_networklg(input_var, sliding_window_length,
 			filter_size = filter_sizes[0],
 			pad = pad,
 			nonlinearity = lasagne.nonlinearities.rectify,
-			W = lasagne.init.Normal(0.1),
-			b = lasagne.init.Constant(1)
+			W = W1,
+			b = b1
 		)
 	netlg = Conv1DLayerFast(
 			netlg,
@@ -213,8 +222,8 @@ def create_networklg(input_var, sliding_window_length,
 			filter_size = filter_sizes[1],
 			pad = pad,
 			nonlinearity = lasagne.nonlinearities.rectify,
-			W = lasagne.init.Normal(0.1),
-			b = lasagne.init.Constant(1)
+			W = W2,
+			b = b2
 		)
 	netlg = lasagne.layers.ReshapeLayer(
 			netlg,
@@ -270,7 +279,7 @@ def train_networklg(netlg, input_var, target_var,
 					[test_loss, prediction])
 
 	# Finally, actually trains the network
-	num_iterations = 100
+	num_iterations = 1000
 	for epoch in range(num_iterations):
 		train_err = 0
 		for batch in iterate_minibatcheslg(train_wins,
@@ -303,7 +312,8 @@ def test_networklg(netlg, input_var, target_var, validation_function,
 def run_networklg(train_wins, train_wins_labels,
 			test_wins, test_wins_labels,
 			mode = "same_random",
-			batch_size = None):
+			batch_size = None,
+			weights = None):
 
 	input_var = T.tensor3('inputs')
 	target_var = T.fcol('targets')
@@ -312,7 +322,8 @@ def run_networklg(train_wins, train_wins_labels,
 		batch_size = len(train_wins_labels)
 
 	#print("Will create Lasagne network")
-	netlg = create_networklg(input_var, sliding_window_length, mode = mode)
+	netlg = create_networklg(input_var, sliding_window_length,
+				mode = mode, weights = weights)
 
 	#print("Will train network")
 	validation_function = train_networklg(netlg, input_var, target_var,
@@ -325,6 +336,10 @@ def run_networklg(train_wins, train_wins_labels,
 
 
 # ---------------------------------------------------------------- MAIN FUNCTION
+
+def gen_sliding_windows_mean(time_series):
+	for i in time_series:
+		print(i, np.avg(i))
 
 def generate_output_files(folder, file_name, test_wins_labels, predictions):
 	file_name_stem = "./" + folder + "/" + file_name
@@ -378,7 +393,7 @@ if __name__ == '__main__':
 	#	initialize the weights randomly
 	# * 'valid_weights': Use convolutional layers with `valid` padding, and
 	#	initialize the weights by reading the "weights_input_file"
-	mode = 'valid_random'
+	mode = 'valid_weights'
 
 	# The name of the file where the weights (generated, e.g., by a CAES or
 	# a CDBN) are stored. These are used to initialize the CNN.
@@ -387,7 +402,7 @@ if __name__ == '__main__':
 	# will be trained by this run of the program
 	weights_input_file = 'cdbn_models.mat'
 	if (weights_input_file):
-		weights = sio.loadmat(weights_input_file)
+		weights = sio.loadmat(weights_input_file)['cdbn_models']
 
 	# ----------------------------- TRAIN CNN
 	recursion_limit = 10000
@@ -407,6 +422,9 @@ if __name__ == '__main__':
 			test_wins, test_wins_labels = load_data(
 					input_file, sliding_window_length)
 
+		gen_sliding_windows_mean(test_wins)
+		sys.exit()
+
 		# FIXME: For now, I am only using the Lasagne implementation
 		#netnl = create_networknl(sliding_window_length)
 		#run_networknl(netnl, train_wins, train_wins_labels,
@@ -418,7 +436,8 @@ if __name__ == '__main__':
 					test_wins,
 					test_wins_labels,
 					mode = mode,
-					batch_size = batch_size)
+					batch_size = batch_size,
+					weights = weights[i-1])
 
 		print("Will output results")
 		#print_errors_network(test_wins_labels, predictions)
