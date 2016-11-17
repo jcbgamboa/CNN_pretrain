@@ -1,4 +1,4 @@
-function [cnn, errors] = run_networks_yahoo(dataset_folder, mode)
+function run_networks_yahoo(dataset_folder, mode)
     % Runs the networks in the Yahoo! dataset
 
     % `mode` can have the following values
@@ -6,57 +6,55 @@ function [cnn, errors] = run_networks_yahoo(dataset_folder, mode)
     % 1: Pretrain with CDBN and use its weights to initialize the CNN
 
     files = getAllFiles(dataset_folder);
+    how_many_files = 6;
+    files = files(1:how_many_files);
 
+    % Initialize a variable to store the models (needed for `mode = 1`)
+    
+    cdbn_models = cell([how_many_files, 4]);
     for i = 1:length(files)
         [train_wins, train_wins_labels, test_wins, test_wins_labels] ...
                                     = read_yahoo_file(cell2mat(files(i)));
-                                
-        opts.alpha = 0.01;
-        opts.batchsize = 20;
-        opts.numepochs = 100;
-        opts.dims = 1;
-        opts.regression = 1;
-        cnn.layers = {
-            struct('type', 'i') %input layer
-            struct('type', 'c', 'outputmaps', 20, 'kernelsize', 11) %convolution layer
-            struct('type', 's', 'scale', 2) %sub sampling layer
-            struct('type', 'c', 'outputmaps', 100, 'kernelsize', 2) %convolution layer
-            struct('type', 's', 'scale', 2) %subsampling layer
-        };
-        cnn = cnnsetup(cnn, train_wins, train_wins_labels, opts);
 
         if (mode == 1)
             % Initializes the CDBN
-            filter_sizes{1} = [11 1];
-            filter_sizes{2} = [2 1];
-            pooling_sizes{1} = [2 1];
-            pooling_sizes{2} = [2 1];
-            n_epochs = [2 2];
-            input_types{1} = 'Binary';
-            input_types{2} = 'Binary';
+            filter_sizes{1} = [5 1];
+            filter_sizes{2} = [5 1];
+            pooling_sizes{1} = [1 1];
+            pooling_sizes{2} = [1 1];
+            n_epochs = [50 50];
+            input_types{1} = 'Gaussian';
+            input_types{2} = 'Gaussian';
             cdbn_layers = CDBN_init(train_wins, filter_sizes, ...
                                     pooling_sizes, n_epochs, input_types);
 
+            % The Lasagne code is using 20 filters in the first layer, and
+            % 10 in the second layer. Hardcode these numbers here for now.
+            cdbn_layers{1}.n_map_v = 1;
+            cdbn_layers{1}.n_map_h = 20;
+            cdbn_layers{2}.n_map_v = 20;
+            cdbn_layers{2}.n_map_h = 10;
+
             [cdbn_model, cdbn_layers] = run_CDBN(...
                                     cdbn_layers, train_wins, train_wins);
-            cnn = CNN_transfer_weights_CDBN(cnn, cdbn_model);
+
+            % Stores the model in a variable -- so that later we can save
+            % it along with all others into a file that will be read by the
+            % Lasagne CNN implementation
+            cdbn_models{i,1} = cdbn_model{1,1}.W;
+            cdbn_models{i,2} = cdbn_model{1,1}.h_bias;
+            cdbn_models{i,3} = cdbn_model{1,2}.W;
+            cdbn_models{i,4} = cdbn_model{1,2}.h_bias;
         end
-
-        cnn = cnntrain(cnn, train_wins, train_wins_labels, opts); 
-
-        % We need to rewrite the function that tests the cnn. Instead of
-        % classification, we now want to know the regression error.
-        opts.batchsize = size(test_wins_labels, 2);
-        [err, bad] = CNN_regression_test(cnn, test_wins, ...
-                                        test_wins_labels, opts);
-
-        %[err, bad] = cnntest(cnn, test_wins, test_wins_labels, opts);
-        %bads{i, 1} = bad;
-        %bads{i, 2} = find(test_wins_labels(2,:) == 1);
     end
-
-    %plot mean squared error
-    %figure; plot(cnn.rL);
+    
+    if (mode == 1 || mode == 3)
+        % Save data into .mat file
+        save('cdbn_models.mat', 'cdbn_models');
+    end
+    
+    % Runs Lasagne CNNs (in plural because it will run on all files)
+    system('./cnn_lasagne.py');
 end
 
 function [train_wins, train_wins_labels, ...
@@ -86,4 +84,17 @@ function [train_wins, train_wins_labels, ...
     %train_winsL = labelmatrix(train_winsL(1:end-19), 2)';
     %test_winsL  = labelmatrix(test_winsL(1:end-19), 2)';
 
+    % NORMALIZE THE TRAINING DATA
+    % (because the CDBN uses binary units that will not output anything
+    % outside the range [0, 1])
+    % [I am not caring about the test data because it is processed
+    % somewhere else, not by Matlab]
+    
+    % First, we "zero center" the data
+    train_wins = train_wins - min(train_wins(:));
+    train_wins_labels = train_wins_labels - min(train_wins_labels);
+    
+    % Then we scale it to be in the range [0, 1]
+    train_wins = train_wins ./ max(train_wins(:));
+    train_wins_labels = train_wins_labels ./ max(train_wins_labels);
 end

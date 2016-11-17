@@ -1,4 +1,4 @@
-function [cnn, errors] = run_networks_mnist(...
+function [cnn, errors, losses] = run_networks_mnist(...
             input_file_name, mode, how_many_folds, this_opts)
     % Runs the networks in the mnist dataset
     %
@@ -21,17 +21,24 @@ function [cnn, errors] = run_networks_mnist(...
 
     % Loads data
     add_noise = 0;
-    [data_x, data_y] = load_data(input_file_name, add_noise);
+    if (how_many_folds > 1)
+        [data_x, data_y] = load_data(input_file_name, add_noise);
+        indices = crossvalind('Kfold', size(data_x, 4), how_many_folds);
+    else
+        [train_data, trainL, test_data, testL] = ...
+                load_data_mnist_original(input_file_name, add_noise);
+    end
 
     % Apparently MATLAB doesn't like this call anymore. Damn it...
     rand('state', 0);
     
     errors = [];
-    indices = crossvalind('Kfold', size(data_x, 4), how_many_folds);
     for i = 1:how_many_folds
-        [train_data, trainL, test_data, testL] = ...
-            get_crossvalidation_data_mnist(data_x, data_y, ...
-                                    indices, i);
+        if (how_many_folds > 1)
+            [train_data, trainL, test_data, testL] = ...
+                get_crossvalidation_data_mnist(data_x, data_y, ...
+                                                        indices, i);
+        end
 
         % Initializes the CNN
         [CNN_train_data, CNN_trainL, CNN_test_data, CNN_testL] = ...
@@ -44,7 +51,7 @@ function [cnn, errors] = run_networks_mnist(...
 
         opts.alpha = 1;
         opts.batchsize = 50; %1;
-        opts.numepochs = 10;
+        opts.numepochs = 50;
         opts.dims = 2;
         cnn.layers = {
             struct('type', 'i') %input layer
@@ -64,8 +71,8 @@ function [cnn, errors] = run_networks_mnist(...
             pooling_sizes{1} = [2 2];
             pooling_sizes{2} = [2 2];
             n_epochs = [10 10];
-            input_types{1} = 'Binary';
-            input_types{2} = 'Binary';
+            input_types{1} = this_opts.cdbn_unit_type;
+            input_types{2} = this_opts.cdbn_unit_type;
             cdbn_layers = CDBN_init(train_data, filter_sizes, ...
                                 pooling_sizes, n_epochs, input_types);
             
@@ -98,7 +105,7 @@ function [cnn, errors] = run_networks_mnist(...
             % Get the resulting .mat file (with Weights)
             % Insert them into the CNN -- actually done later
             cnn = CNN_transfer_weights_CAE(cnn, ...
-                                'convolutional_autoencoder/caes_out.mat');
+                                'caes_out.mat');
         elseif (mode == 4)
             % Initializes the CDBN
             filter_sizes{1} = [7 7];
@@ -106,8 +113,8 @@ function [cnn, errors] = run_networks_mnist(...
             pooling_sizes{1} = [2 2];
             pooling_sizes{2} = [2 2];
             n_epochs = [2 2];
-            input_types{1} = 'Binary';
-            input_types{2} = 'Binary';
+            input_types{1} = this_opts.cdbn_unit_type;
+            input_types{2} = this_opts.cdbn_unit_type;
             cdbn_layers = CDBN_init(train_data, filter_sizes, ...
                                     pooling_sizes, n_epochs, input_types);
 
@@ -128,7 +135,7 @@ function [cnn, errors] = run_networks_mnist(...
 
         
         cnn = cnntrain(cnn, CNN_train_data, CNN_trainL, opts); 
-
+        losses = cnn.losses;
         % We take the test set as only one huge test set
         opts.batchsize = 10000;
         [er, bad] = cnntest(cnn, CNN_test_data, CNN_testL, opts);
@@ -139,5 +146,4 @@ function [cnn, errors] = run_networks_mnist(...
         %plot mean squared error
         %figure; plot(cnn.rL);
     end
-
 end

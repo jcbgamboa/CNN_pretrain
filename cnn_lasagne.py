@@ -117,7 +117,7 @@ def create_networknl(sliding_window_length = 10):
 				'num_filters': 20,
 				'filter_size': sliding_window_length,
 				'pad':'same',
-				'nonlinearity': lasagne.nonlinearities.rectify,
+				'nonlinearity': lasagne.nonlinearities.very_leaky_rectify,
 				'W':lasagne.init.Normal(0.1),
 				'b':lasagne.init.Constant(1)
 			}),
@@ -127,7 +127,7 @@ def create_networknl(sliding_window_length = 10):
 				'num_filters': 10,
 				'filter_size': sliding_window_length,
 				'pad':'same',
-				'nonlinearity': lasagne.nonlinearities.rectify,
+				'nonlinearity': lasagne.nonlinearities.very_leaky_rectify,
 				'W':lasagne.init.Normal(0.1),
 				'b':lasagne.init.Constant(1)
 			}),
@@ -177,37 +177,58 @@ def run_networknl(netnl, train_wins, train_wins_labels,
 # Here, `lg` indicates "lasagne". It is here in opposition to `nl` in the rest
 # of the code, above, which mean "nolearn" (i.e., using `nolearn`)
 
-def create_networklg(input_var, sliding_window_length):
+def create_networklg(input_var, sliding_window_length,
+			mode = "same_random",
+			weights = None):
+	number_of_filters = [20, 10]
+	if (mode == "same_random"):
+		filter_sizes = [sliding_window_length, sliding_window_length]
+		last_size = filter_sizes[-1]
+		pad = 'same'
+
+	if ("valid" in mode):
+		filter_sizes = [sliding_window_length/2, sliding_window_length/2]
+		last_size = 2
+		pad = 'valid'
+
+	W1 = lasagne.init.Normal(0.1)
+	W2 = lasagne.init.Normal(0.1)
+	b1 = lasagne.init.Constant(1)
+	b2 = lasagne.init.Constant(1)
+	if (("weights" in mode) and (weights is not None)):
+		W1 = np.squeeze(np.transpose(weights[0], axes=[1,3,2,0]),
+				axis=(0,)).astype(np.float32)
+		b1 = np.squeeze(weights[1]).astype(np.float32)
+		W2 = np.squeeze(np.transpose(weights[2], axes=[1,3,2,0]),
+				axis=(0,)).astype(np.float32)
+		b2 = np.squeeze(weights[3]).astype(np.float32)
+
 	netlg = lasagne.layers.InputLayer(
 			shape = (None, 1, sliding_window_length),
 			input_var = input_var
 		)
-
 	netlg = Conv1DLayerFast(
 			netlg,
-			num_filters = 20,
-			filter_size = sliding_window_length,
-			pad = 'same',
+			num_filters = number_of_filters[0],
+			filter_size = filter_sizes[0],
+			pad = pad,
 			nonlinearity = lasagne.nonlinearities.rectify,
-			W = lasagne.init.Normal(0.1),
-			b = lasagne.init.Constant(1)
+			W = W1,
+			b = b1
 		)
-
 	netlg = Conv1DLayerFast(
 			netlg,
-			num_filters = 10,
-			filter_size = sliding_window_length,
-			pad = 'same',
+			num_filters = number_of_filters[1],
+			filter_size = filter_sizes[1],
+			pad = pad,
 			nonlinearity = lasagne.nonlinearities.rectify,
-			W = lasagne.init.Normal(0.1),
-			b = lasagne.init.Constant(1)
+			W = W2,
+			b = b2
 		)
-
 	netlg = lasagne.layers.ReshapeLayer(
 			netlg,
-			shape = [-1, 100]
+			shape = [-1, number_of_filters[-1] * last_size]
 		)
-
 	netlg = lasagne.layers.DenseLayer(
 			netlg,
 			num_units = 1,
@@ -224,6 +245,14 @@ def loss_sum_of_squared_errorslg(prediction, target_var):
 	# Reduces the vector (aggregate) by summing its values. 
 	return lasagne.objectives.aggregate(loss, mode='sum')
 
+def iterate_minibatcheslg(wins, wins_labels, batch_size):
+	# A lot based on `iterate_minibatches()` from the Lasagne tutorial
+	for start_idx in range(0, len(wins), batch_size):
+		curr_elems = slice(start_idx, start_idx + batch_size)
+		#print("yielding elements {} to {}".format(
+		#	start_idx, start_idx + batch_size))
+		yield wins[curr_elems], wins_labels[curr_elems]
+
 def train_networklg(netlg, input_var, target_var,
 			train_wins, train_wins_labels, batch_size):
 	# Because Theano is symbolic, we need to define some variables here
@@ -232,30 +261,25 @@ def train_networklg(netlg, input_var, target_var,
 	# - `params` are the variables we can change in the network (e.g.,
 	#	connection weights and biases)
 	# - `updates` is how to change it (lasagne offers some options already)
-	print("Defining training symbols")
+	# (Also: the default parameters of the lasagne's implementation of the
+	# Adam optimizer are exactly the same as those from TensorFlow)
 	prediction = lasagne.layers.get_output(netlg)
+
 	loss = loss_sum_of_squared_errorslg(prediction, target_var)
 	params = lasagne.layers.get_all_params(netlg, trainable=True)
-
-	# The default parameters of the lasagne's implementation of the Adam
-	# optimizer are exactly the same as those from TensorFlow
 	updates = lasagne.updates.adam(loss, params)
+	training_function = theano.function([input_var, target_var],
+					loss, updates = updates)
 
 	# To monitoring the progress of the network, lasagne's tutorial suggest
 	# the definition of these variables
-	print("Defining validation symbols")
 	test_prediction = lasagne.layers.get_output(netlg, deterministic=True)
 	test_loss = loss_sum_of_squared_errorslg(test_prediction, target_var)
-
-	print("Compiling functions")
-	training_function = theano.function([input_var, target_var],
-					loss, updates = updates)
 	validation_function = theano.function([input_var, target_var],
 					[test_loss, prediction])
 
 	# Finally, actually trains the network
-	num_iterations = 100
-	print("Actually training")
+	num_iterations = 1000
 	for epoch in range(num_iterations):
 		train_err = 0
 		for batch in iterate_minibatcheslg(train_wins,
@@ -267,14 +291,6 @@ def train_networklg(netlg, input_var, target_var,
 			epoch, train_err))
 
 	return validation_function
-
-def iterate_minibatcheslg(wins, wins_labels, batch_size):
-	# A lot based on `iterate_minibatches()` from the Lasagne tutorial
-	for start_idx in range(0, len(wins), batch_size):
-		curr_elems = slice(start_idx, start_idx + batch_size)
-		#print("yielding elements {} to {}".format(
-		#	start_idx, start_idx + batch_size))
-		yield wins[curr_elems], wins_labels[curr_elems]
 
 def test_networklg(netlg, input_var, target_var, validation_function,
 			test_wins, test_wins_labels, batch_size):
@@ -294,74 +310,142 @@ def test_networklg(netlg, input_var, target_var, validation_function,
 	return test_err, predictions
 
 def run_networklg(train_wins, train_wins_labels,
-			test_wins, test_wins_labels):
+			test_wins, test_wins_labels,
+			mode = "same_random",
+			batch_size = None,
+			weights = None):
 
 	input_var = T.tensor3('inputs')
 	target_var = T.fcol('targets')
-	batch_size = 20
+
+	if (batch_size == None):
+		batch_size = len(train_wins_labels)
 
 	#print("Will create Lasagne network")
-	netlg = create_networklg(input_var, sliding_window_length)
+	netlg = create_networklg(input_var, sliding_window_length,
+				mode = mode, weights = weights)
 
 	#print("Will train network")
 	validation_function = train_networklg(netlg, input_var, target_var,
 				train_wins, train_wins_labels, batch_size)
 
-	test_err, predictions = test_networklg(netlg, input_var, target_var,
+	test_loss, predictions = test_networklg(netlg, input_var, target_var,
 			validation_function, test_wins, test_wins_labels, batch_size)
-	#print(test_err)
-	#print("Length of predictions: {}".format(len(predictions)))
 
-	print_errors_network(test_wins_labels, predictions)
-	plot_actual_and_predicted("./comparison.png", test_wins_labels, predictions)
+	return test_loss, predictions
+
 
 # ---------------------------------------------------------------- MAIN FUNCTION
+
+def gen_sliding_windows_mean(time_series):
+	for i in time_series:
+		print(i, np.avg(i))
+
+def generate_output_files(folder, file_name, test_wins_labels, predictions):
+	file_name_stem = "./" + folder + "/" + file_name
+	plot_actual_and_predicted(file_name_stem + "_plot_actual_and_predicted",
+				test_wins_labels, predictions)
+	generate_csv_output(file_name_stem + "output",
+				test_wins_labels, predictions)
+
+def generate_csv_output(file_name, y, predictions):
+	out = []
+	for i in range(len(y)):
+		out.append([y[i], predictions[i]])
+	np.savetxt(file_name + '.csv', out, delimiter = ',', fmt = '%5.5f')
 
 def plot_actual_and_predicted(file_name, y, pred):
 	fig = plt.figure()
 	ax = fig.add_subplot(211)
 	ax.plot(y)
-	plt.ylabel('Time Series Values')
+	plt.ylabel('Actual Values')
 	plt.grid(True)
 	plt.title('Actual and Predicted Values of TS')
 
 	ax = fig.add_subplot(212)
 	ax.plot(pred, color='r')
-	plt.ylabel('Predicted Time Series Values')
+	plt.ylabel('Predicted Values')
 	plt.xlabel('Number of Timestamps')
 	plt.grid(True)
 
-	fig.savefig(file_name, edgecolor=None)
+	fig.savefig(file_name + '.png', edgecolor=None)
 
 def print_errors_network(test_wins_labels, y_pred):
 	error = y_pred - test_wins_labels
 	for i, _ in enumerate(y_pred):
 		print("y: {a}\ty_pred: {b}\terror: {c}".format(
-			a=test_wins_labels[i], b=y_pred[i], c=error[i]))
+			a=test_wins_labels[i][0], b=y_pred[i][0], c=error[i][0]))
 	print(error)
 
 if __name__ == '__main__':
+	# ----------------------------- PARAMETERS
+	# Size of the Sliding Window
 	sliding_window_length = 10
+
+	# If batch_size is None, use the entire training set [for now, this is
+	# what the code is doing]
+	batch_size = None
+
+	# The following modes are supported:
+	# * 'same_random': Use convolutional layers with `same` padding, and
+	#	initialize the weights randomly
+	# * 'valid_random': Use convolutional layers with `valid` padding, and
+	#	initialize the weights randomly
+	# * 'valid_weights': Use convolutional layers with `valid` padding, and
+	#	initialize the weights by reading the "weights_input_file"
+	mode = 'valid_weights'
+
+	# The name of the file where the weights (generated, e.g., by a CAES or
+	# a CDBN) are stored. These are used to initialize the CNN.
+	#
+	# The file should contain the weights to be used with *all* CNNs that
+	# will be trained by this run of the program
+	weights_input_file = 'cdbn_models.mat'
+	if (weights_input_file):
+		weights = sio.loadmat(weights_input_file)['cdbn_models']
+
+	# ----------------------------- TRAIN CNN
 	recursion_limit = 10000
-	print("Setting recursion limit to {rl}".format(rl = recursion_limit))
 	sys.setrecursionlimit(recursion_limit)
 
-	print("Loading Yahoo dataset... (actually, for now, only one file)")
-	file_name = "./yahoo_dataset/A3Benchmark/A3Benchmark-TS1.csv"
-	train_wins, train_wins_labels, test_wins, test_wins_labels = load_data(
-						file_name, sliding_window_length)
+	all_losses = []
 
-	print("Types: {a}, {b}, {c}, {d}".format(
-		a=train_wins.dtype, b=train_wins_labels.dtype,
-		c=test_wins.dtype, d=test_wins_labels.dtype))
+	input_folder = './yahoo_dataset/A3Benchmark/'
+	input_file_name_stem = "A3Benchmark-TS"
 
-	#netnl = create_networknl(sliding_window_length)
-	#run_networknl(netnl, train_wins, train_wins_labels,
-	#		test_wins, test_wins_labels)
+	for i in range(1, 7):
+		print("Loading Yahoo file {}".format(i))
+		input_file = input_folder + input_file_name_stem +\
+				'{}'.format(i) + '.csv'
 
-	print("Will run network")
-	run_networklg(train_wins, train_wins_labels,
-			test_wins, test_wins_labels)
+		train_wins, train_wins_labels, \
+			test_wins, test_wins_labels = load_data(
+					input_file, sliding_window_length)
 
+		gen_sliding_windows_mean(test_wins)
+		sys.exit()
+
+		# FIXME: For now, I am only using the Lasagne implementation
+		#netnl = create_networknl(sliding_window_length)
+		#run_networknl(netnl, train_wins, train_wins_labels,
+		#		test_wins, test_wins_labels)
+
+		print("Will run network")
+		test_loss, predictions = run_networklg(train_wins,
+					train_wins_labels,
+					test_wins,
+					test_wins_labels,
+					mode = mode,
+					batch_size = batch_size,
+					weights = weights[i-1])
+
+		print("Will output results")
+		#print_errors_network(test_wins_labels, predictions)
+		generate_output_files('results_yahoo', 'TS{}'.format(i),
+					test_wins_labels, predictions)
+		all_losses.append(test_loss)
+
+	for i, loss in enumerate(all_losses):
+		print("Loss[{}] = {}".format(i, loss))
 
 
