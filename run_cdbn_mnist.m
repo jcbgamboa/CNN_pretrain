@@ -60,5 +60,5 @@ function output_cdbn_to_file(out_folder, i, cdbn_model, cdbn_layers)
     end
     
     output_filename = strcat(out_folder, '/cdbn_', num2str(i), '.mat');
-    save(output_filename, 'cdbn_model');
+    save(output_filename, 'cdbn_out');
 end

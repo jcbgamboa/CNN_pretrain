@@ -91,10 +91,10 @@ def parse_command_line():
 	parser = argparse.ArgumentParser(
 			description='Simple convolutional autoencoder')
 	parser.add_argument('in_file', metavar = 'input_data', type = str,
-			nargs = '+',
+			#nargs = '+',
 			help = 'File with the data to be "autoencoded".')
 	parser.add_argument('out_file', metavar = 'output_file', type = str,
-			nargs = '+',
+			#nargs = '+',
 			help = 'Name of the output file.')
 
 	return parser.parse_args()
@@ -102,9 +102,8 @@ def parse_command_line():
 
 def main():
 	args = parse_command_line()
-	in_file = args.in_file[0]
-	out_file = args.out_file[0]
-	print(out_file)
+	in_file = args.in_file
+	out_file = args.out_file
 
 	recursion_limit = 10000
 	print("Setting recursion limit to {rl}".format(rl = recursion_limit))
