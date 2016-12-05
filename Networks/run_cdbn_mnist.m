@@ -6,6 +6,12 @@ function run_cdbn_mnist(how_many_folds, input_folder, output_folder, opts)
         [train_data, trainL, test_data, testL] = ...
                                     load_mnist_data(input_folder, i);
 
+        if (i < opts.start_from)
+            continue;
+        end
+
+        fprintf('Working on fold %d\n', i);
+
         % I am saving as much memory as I can <o>
         clear trainL test_data testL;
 
@@ -20,7 +26,7 @@ function run_cdbn_mnist(how_many_folds, input_folder, output_folder, opts)
         filter_sizes{2} = [6 6];
         pooling_sizes{1} = [2 2];
         pooling_sizes{2} = [2 2];
-        n_epochs = [1 1];
+        n_epochs = [10 10];
         input_types{1} = opts.cdbn_unit_type;
         input_types{2} = opts.cdbn_unit_type;
         cdbn_layers = CDBN_init(train_data, filter_sizes, ...
