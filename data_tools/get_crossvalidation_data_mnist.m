@@ -7,7 +7,7 @@ function [train_data, train_labels, test_data, test_labels] = ...
     
     % Allocate space
     test_data  = zeros(28, 28, 1, histc(indices, curr_fold));
-    train_data = zeros(28, 28, 1, size(indices, 2) - size(test_data, 2));
+    train_data = zeros(28, 28, 1, size(indices, 1) - size(test_data, 4));
     
     test_labels  = zeros(size(test_data, 4), 1);
     train_labels = zeros(size(train_data, 4), 1);
