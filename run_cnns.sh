@@ -6,12 +6,15 @@
 # Training set: full, reduced (to 10000 elements)
 # Datasets: MNIST, CIFAR
 #
+# Conditions:
 # random_weights sigmoid
 # random_weights relu
 # cdbn binary
 # cdbn gaussian
 # caes sigmoid
 # caes relu
+#
+# Each experiment is run in 6 folds of CIFAR and 7 folds of MNIST.
 
 
 
