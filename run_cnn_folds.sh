@@ -44,6 +44,8 @@ then
 	:
 fi
 
+PARAM_FLAGS="$PARAM_FLAGS --n_epochs $N_EPOCHS"
+
 if [ $DATASET_SIZE = 'reduced' ]
 then
 	PARAM_FLAGS="$PARAM_FLAGS --reduce_dataset_to 10000"
