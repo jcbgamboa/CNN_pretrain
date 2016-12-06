@@ -1,213 +1,180 @@
 #! /bin/bash
-# Is there a better way to do this? This is awful!
 
-MNIST_PATH=./mnist_folds
-MNIST_FOLDS=7
-MNIST_OUTPUT_PATH=./mnist_results
-
-CIFAR_PATH=./cifar_folds
-CIFAR_FOLDS=6
-CIFAR_OUTPUT_PATH=./cifar_results
-
-mkdir -p $MNIST_OUTPUT_PATH
-mkdir -p $CIFAR_OUTPUT_PATH
-
-FULL_DATASET=full
-REDUCED_DATASET=reduced
-
-RANDOM_SIGMOID=rand_sigmoid
-RANDOM_RELU=rand_relu
-CDBN_BINARY=cdbn_bin
-CDBN_GAUSSIAN=cdbn_gaus
-CAES_SIGMOID=caes_sigmoid
-CAES_RELU=caes_relu
-
-# Summary of for loops
+# SUMMARY
 #
-# Full dataset  (/full)
-# random_weights sigmoid -- 1, 10, 50 /rand_sigmoid/[1epoch, 10epoch, 50 epoch]
-# random_weights relu -- 1, 10, 50 /rand_relu/[1epoch, 10epoch, 50 epoch]
-# cdbn binary -- 1, 10, 50 /cdbn_binary/[1epoch, 10epoch, 50 epoch]
-# cdbn gaussian -- 1, 10, 50 ...
-# caes sigmoid -- 1, 10, 50
-# caes relu -- 1, 10, 50
+# Number of epochs for each experiment: 1, 10, 50
+# Training set: full, reduced (to 10000 elements)
+# Datasets: MNIST, CIFAR
 #
-# 10000 first training examples (/reduced)
-# random_weights sigmoid -- 1, 10, 50
-# random_weights relu -- 1, 10, 50
-# cdbn binary -- 1, 10, 50
-# cdbn gaussian -- 1, 10, 50
-# caes sigmoid -- 1, 10, 50
-# caes relu -- 1, 10, 50
-
-# ---------- RANDOM - FULL - SIGMOID ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_SIGMOID/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_SIGMOID/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_SIGMOID/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50
-done
-
-# ---------- RANDOM - FULL - RELU ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_RELU/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1 --use_relu
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_RELU/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10 --use_relu
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$RANDOM_RELU/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50 --use_relu
-done
-
-# ---------- CDBN BINARY - FULL ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_BINARY/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/binary/cdbn_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_BINARY/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/binary/cdbn_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_BINARY/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/binary/cdbn_$i.mat
-done
-
-# ---------- CDBN GAUSSIAN - FULL ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_GAUSSIAN/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/gaussian/cdbn_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_GAUSSIAN/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/gaussian/cdbn_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CDBN_GAUSSIAN/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50 \
-		--pretrained_model ./pretrained_weights/cdbn/mnist/gaussian/cdbn_$i.mat
-done
-
-# ---------- CAES - FULL - SIGMOID ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_SIGMOID/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1 \
-		--pretrained_model ./pretrained_weights/caes/sigmoid/mnist/fold_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_SIGMOID/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10 \
-		--pretrained_model ./pretrained_weights/caes/sigmoid/mnist/fold_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_SIGMOID/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50 \
-		--pretrained_model ./pretrained_weights/caes/sigmoid/mnist/fold_$i.mat
-done
-
-# ---------- CAES - FULL - RELU ---------
-OUT_DIR=$MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_RELU/1epoch
-mkdir -p $OUT_DIR
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 1 --use_relu \
-		--pretrained_model ./pretrained_weights/caes/relu/mnist/fold_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_RELU/10epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 10 --use_relu \
-		--pretrained_model ./pretrained_weights/caes/relu/mnist/fold_$i.mat
-done
-
-mkdir -p $MNIST_OUTPUT_PATH/$FULL_DATASET/$CAES_RELU/50epoch
-for ((i = 1; i <= $MNIST_FOLDS; i++))
-do
-	echo "python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR"
-	python3 cnns/cnn_keras.py $MNIST_PATH/fold_$i.mat $OUT_DIR \
-		--n_epochs 50 --use_relu \
-		--pretrained_model ./pretrained_weights/caes/relu/mnist/fold_$i.mat
-done
+# random_weights sigmoid
+# random_weights relu
+# cdbn binary
+# cdbn gaussian
+# caes sigmoid
+# caes relu
 
 
-# CIFAR -- DON'T FORGET TO ADD --normalize!!!
+
+# RANDOM WEIGHTS, FULL DATASET
+# ============================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 1 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 10 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 50 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 50 full
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 1 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 10 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 50 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 50 full
+
+
+
+
+
+# CDBN INITIALIZATION, FULL DATASET
+# =================================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 1 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 10 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 50 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 50 full
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 1 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 10 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 50 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 50 full
+
+
+
+
+
+# CAES INITIALIZATION, FULL DATASET
+# =================================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 1 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 10 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 50 full
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 50 full
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 1 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 1 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 10 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 10 full
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 50 full
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 50 full
+
+
+
+
+
+
+# RANDOM WEIGHTS, REDUCED DATASET
+# ===============================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 1 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 10 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/relu random cifar relu 50 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/random/cifar/sigmoid random cifar sigmoid 50 reduced
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 1 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 10 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/relu random mnist relu 50 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/random/mnist/sigmoid random mnist sigmoid 50 reduced
+
+
+
+
+
+
+# CDBN INITIALIZATION, REDUCED DATASET
+# ====================================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 1 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 10 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/binary cdbn cifar sigmoid 50 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/cdbn/cifar/gaussian cdbn cifar sigmoid 50 reduced
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 1 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 10 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/binary cdbn mnist sigmoid 50 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/cdbn/mnist/gaussian cdbn mnist sigmoid 50 reduced
+
+
+
+
+
+
+# CAES INITIALIZATION, REDUCED DATASET
+# ====================================
+
+# CIFAR
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 1 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 10 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/relu caes cifar relu 50 reduced
+./run_cnn_folds.sh ./datasets/cifar_folds 6 ./results/cnn/caes/cifar/sigmoid caes cifar sigmoid 50 reduced
+
+# MNIST
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 1 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 1 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 10 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 10 reduced
+
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/relu caes mnist relu 50 reduced
+./run_cnn_folds.sh ./datasets/mnist_folds 7 ./results/cnn/caes/mnist/sigmoid caes mnist sigmoid 50 reduced
+
+
 
