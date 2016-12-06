@@ -37,8 +37,11 @@ opts.intercalations = 5;
 opts.normalize = 0;
 opts.use_rgb = 0;
 opts.cdbn_unit_type = 'Binary';
+opts.start_from = 4;
+%run_cdbn_mnist(7, './mnist_folds', './pretrained_weights/cdbn/mnist/binary', opts);
 run_cdbn_mnist(7, './mnist_folds', './pretrained_weights/cdbn/mnist/binary', opts);
 
+opts.start_from = 1;
 opts.cdbn_unit_type = 'Gaussian';
 run_cdbn_mnist(7, './mnist_folds', './pretrained_weights/cdbn/mnist/gaussian', opts);
 
@@ -47,9 +50,11 @@ run_cdbn_mnist(7, './mnist_folds', './pretrained_weights/cdbn/mnist/gaussian', o
 opts.normalize = 1;
 opts.use_rgb = 1;
 opts.cdbn_unit_type = 'Binary';
+opts.start_from = 2;
 run_cdbn_mnist(6, './cifar_folds', './pretrained_weights/cdbn/cifar/binary', opts);
 
 opts.cdbn_unit_type = 'Gaussian';
+opts.start_from = 3;
 run_cdbn_mnist(6, './cifar_folds', './pretrained_weights/cdbn/cifar/gaussian', opts);
 
 % Print current time
