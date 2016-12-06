@@ -116,8 +116,8 @@ def load_dataset(in_file, normalize = False, reduce_dataset_to = 0):
 	test_data  = np.transpose(dataset['test_data'], axes = (3, 0, 1, 2))
 
 	if (normalize):
-		train_data /= 256.0
-		test_data  /= 256.0
+		train_data = train_data / 256.0
+		test_data  = test_data  / 256.0
 
 	trainL, testL = label_binarize(trainL, testL)
 
