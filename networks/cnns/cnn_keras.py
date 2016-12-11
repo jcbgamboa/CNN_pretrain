@@ -1,4 +1,3 @@
-#! /usr/bin/python3
 # Generate a simple CNN with Keras
 
 # It receives as parameter
