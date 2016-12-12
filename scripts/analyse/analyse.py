@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 
 from scipy.interpolate import interp1d
 
-def analyse_single_experiment(in_folder):
+def analyse_single_experiment(in_folder, analyse_accuracy = True,
+					by_epoch = False):
 	# TODO: This is very specific to my experiments. Find a more generic
 	#	way to do this.
 
@@ -21,10 +22,14 @@ def analyse_single_experiment(in_folder):
 	test_accuracy = np.zeros(n_folds)
 	for i, f_name in enumerate(folds):
 		# open `per_batch_metrics.csv`
-		f = np.loadtxt(f_name + '/per_batch_metrics.csv',
+		f = np.loadtxt(f_name + '/per_' +
+				('epoch_' if by_epoch else 'batch_') +
+				'metrics.csv',
 				delimiter = ',')
-		test_accuracy[i] = np.loadtxt(f_name + '/accuracy.csv',
-				delimiter = ',')
+
+		if (analyse_accuracy):
+			test_accuracy[i] = np.loadtxt(f_name + '/accuracy.csv',
+							delimiter = ',')
 
 		# insert second column (accuracies) into fold_accuracies
 		fold_losses.append(f[:, 0])
@@ -35,7 +40,9 @@ def analyse_single_experiment(in_folder):
 	np_fold_losses = np.array(list(zip(*fold_losses)))
 	np_fold_accuracies = np.array(list(zip(*fold_accuracies)))
 	np_fold_one_minus_accuracies = np.array(list(zip(*fold_one_minus_accuracies)))
-	np.savetxt(in_folder + '/reduced_per_batch_metrics.csv',
+	np.savetxt(in_folder + '/reduced_per_' +
+				('epoch_' if by_epoch else 'batch_') +
+				'metrics.csv',
 		list(zip(np_fold_losses.mean(1),
 				np_fold_losses.std(1),
 				np_fold_accuracies.mean(1),
@@ -44,22 +51,30 @@ def analyse_single_experiment(in_folder):
 				np_fold_one_minus_accuracies.std(1))),
 		delimiter = ',', fmt = '%f')
 
-	# For each fold, generate a mean and std.dev of the accuracy
-	np.savetxt(in_folder + '/reduced_accuracy.csv',
-		[test_accuracy.mean(), test_accuracy.std()],
-		delimiter = ',', fmt = '%f')
+	if (analyse_accuracy):
+		np.savetxt(in_folder + '/reduced_accuracy.csv',
+			[test_accuracy.mean(), test_accuracy.std()],
+			delimiter = ',', fmt = '%f')
 
 def generate_learning_curves(folder, dataset, position,
 				use_single_fold = False,
 				by_epoch = True):
 	lc_folders = []
 
-	lc_folders.append(folder + '/caes/' + dataset + '/relu/full/1epochs')
-	lc_folders.append(folder + '/caes/' + dataset + '/sigmoid/full/1epochs')
-	lc_folders.append(folder + '/cdbn/' + dataset + '/binary/full/1epochs')
-	lc_folders.append(folder + '/cdbn/' + dataset + '/gaussian/full/1epochs')
-	lc_folders.append(folder + '/random/' + dataset + '/relu/full/1epochs')
-	lc_folders.append(folder + '/random/' + dataset + '/sigmoid/full/1epochs')
+	if (by_epoch):
+		lc_folders.append(folder + '/caes/' + dataset + '/relu/full/50epochs')
+		lc_folders.append(folder + '/caes/' + dataset + '/sigmoid/full/50epochs')
+		lc_folders.append(folder + '/cdbn/' + dataset + '/binary/full/50epochs')
+		lc_folders.append(folder + '/cdbn/' + dataset + '/gaussian/full/50epochs')
+		lc_folders.append(folder + '/random/' + dataset + '/relu/full/50epochs')
+		lc_folders.append(folder + '/random/' + dataset + '/sigmoid/full/50epochs')
+	else:
+		lc_folders.append(folder + '/caes/' + dataset + '/relu/full/1epochs')
+		lc_folders.append(folder + '/caes/' + dataset + '/sigmoid/full/1epochs')
+		lc_folders.append(folder + '/cdbn/' + dataset + '/binary/full/1epochs')
+		lc_folders.append(folder + '/cdbn/' + dataset + '/gaussian/full/1epochs')
+		lc_folders.append(folder + '/random/' + dataset + '/relu/full/1epochs')
+		lc_folders.append(folder + '/random/' + dataset + '/sigmoid/full/1epochs')
 
 	if (use_single_fold):
 		for i, f in enumerate(lc_folders):
@@ -78,7 +93,9 @@ def generate_learning_curves(folder, dataset, position,
 	for f in lc_folders:
 		f_data = np.loadtxt(f + '/' +
 				('' if use_single_fold else 'reduced_') +
-				'per_batch_metrics.csv',
+				'per_' +
+				('epoch_' if by_epoch else 'batch_') +
+				'metrics.csv',
 					delimiter = ',')
 
 		if (use_single_fold):
@@ -107,18 +124,22 @@ def generate_learning_curves(folder, dataset, position,
 
 
 	# Make images
-	#plt.plot(np_x, np_mean_one_minus_accuracies)
 	fig = plt.figure()
+	#sub = fig.add_subplot(111)
 	for i, l in enumerate(labels):
-		plt.plot(np_x, np_mean_losses[:, i],
+		pl = plt.plot(np_x, np_mean_losses[:, i],
 				label = l)
+	#if (by_epoch):
+	#	sub.set_yscale('log')
 	legend = plt.legend(loc = position, fontsize='medium')
 	for legobj in legend.legendHandles:
 		legobj.set_linewidth(5.0)
 
 	fig.savefig(folder + '/' + dataset +
 			('_single_' if use_single_fold else '_cross_') +
-			'fold_mean_per_batch_errors.eps')
+			'fold_mean_per_' +
+			('epoch_' if by_epoch else 'batch_') +
+			'errors.eps')
 
 
 def analyse_cross_experiment(results_folder):
@@ -127,8 +148,15 @@ def analyse_cross_experiment(results_folder):
 	generate_learning_curves(results_folder, 'cifar', 'lower left')
 	generate_learning_curves(results_folder, 'mnist', 'upper right')
 
-	generate_learning_curves(results_folder, 'cifar', 'lower left', True)
-	generate_learning_curves(results_folder, 'mnist', 'upper right', True)
+	generate_learning_curves(results_folder, 'cifar', 'lower left',
+				use_single_fold = True)
+	generate_learning_curves(results_folder, 'mnist', 'upper right',
+				use_single_fold = True)
+
+	generate_learning_curves(results_folder, 'cifar', 'lower left',
+				by_epoch = True)
+	generate_learning_curves(results_folder, 'mnist', 'upper right',
+				by_epoch = True)
 
 
 def main():
@@ -136,9 +164,12 @@ def main():
 	in_folder = args.in_folder
 	single_experiment = args.single_experiment
 	multiple_experiments = args.multiple_experiments
+	with_per_epoch = args.with_per_epoch
 
 	if (single_experiment):
 		analyse_single_experiment(in_folder)
+		if (with_per_epoch):
+			analyse_single_experiment(in_folder, by_epoch = True)
 	elif (multiple_experiments):
 		analyse_cross_experiment(in_folder)
 		
@@ -156,6 +187,10 @@ def parse_command_line():
 		dest = 'multiple_experiments', action='store_true',
 		help = 'Given the folder with results, generates analyses' +
 			'through all experiments.')
+	parser.add_argument('--with_per_epoch',
+		dest = 'with_per_epoch', action='store_true',
+		help = 'Activate to also generate results by epoch.')
+
 
 	return parser.parse_args()
 
