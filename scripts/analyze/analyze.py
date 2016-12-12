@@ -49,17 +49,21 @@ def analyse_single_experiment(in_folder):
 		[test_accuracy.mean(), test_accuracy.std()],
 		delimiter = ',', fmt = '%f')
 
-def generate_learning_curves(folder, dataset, position):
+def generate_learning_curves(folder, dataset, position,
+				use_single_fold = False,
+				by_epoch = True):
 	lc_folders = []
 
-	# I use `1 epoch` and `full` because this shouldn't differ with more
-	# epochs.
 	lc_folders.append(folder + '/caes/' + dataset + '/relu/full/1epochs')
 	lc_folders.append(folder + '/caes/' + dataset + '/sigmoid/full/1epochs')
 	lc_folders.append(folder + '/cdbn/' + dataset + '/binary/full/1epochs')
 	lc_folders.append(folder + '/cdbn/' + dataset + '/gaussian/full/1epochs')
 	lc_folders.append(folder + '/random/' + dataset + '/relu/full/1epochs')
 	lc_folders.append(folder + '/random/' + dataset + '/sigmoid/full/1epochs')
+
+	if (use_single_fold):
+		for i, f in enumerate(lc_folders):
+			lc_folders[i] = f + '/fold_1'
 
 	# Labels
 	labels = ['CAES+ReLU', 'CAES+Sigmoid', 'BernoulliCDBN+Sigmoid',
@@ -72,19 +76,22 @@ def generate_learning_curves(folder, dataset, position):
 	mean_one_minus_accuracies = []
 	std_one_minus_accuracies = []
 	for f in lc_folders:
-		f_data = np.loadtxt(f + '/reduced_per_batch_metrics.csv',
+		f_data = np.loadtxt(f + '/' +
+				('' if use_single_fold else 'reduced_') +
+				'per_batch_metrics.csv',
 					delimiter = ',')
 
-		curr_loss = f_data[:, 0]
-		curr_accuracy = f_data[:, 2]
-		curr_one_minus_accuracy = f_data[:, 4]
-
-		mean_losses.append(curr_loss)
-		std_losses.append(f_data[:, 1])
-		mean_accuracies.append(curr_accuracy)
-		std_accuracies.append(f_data[:, 3])
-		mean_one_minus_accuracies.append(curr_one_minus_accuracy)
-		std_one_minus_accuracies.append(f_data[:, 5])
+		if (use_single_fold):
+			mean_losses.append(f_data[:, 0])
+			mean_accuracies.append(f_data[:, 1])
+			mean_one_minus_accuracies.append(f_data[:, 2])
+		else:
+			mean_losses.append(f_data[:, 0])
+			std_losses.append(f_data[:, 1])
+			mean_accuracies.append(f_data[:, 2])
+			std_accuracies.append(f_data[:, 3])
+			mean_one_minus_accuracies.append(f_data[:, 4])
+			std_one_minus_accuracies.append(f_data[:, 5])
 
 
 	# Transform stuff into a vector
@@ -103,75 +110,15 @@ def generate_learning_curves(folder, dataset, position):
 	#plt.plot(np_x, np_mean_one_minus_accuracies)
 	fig = plt.figure()
 	for i, l in enumerate(labels):
-		plt.plot(np_x, np_mean_one_minus_accuracies[:, i],
+		plt.plot(np_x, np_mean_losses[:, i],
 				label = l)
 	legend = plt.legend(loc = position, fontsize='medium')
 	for legobj in legend.legendHandles:
 		legobj.set_linewidth(5.0)
 
-	#plt.fill_between(np_x, np_mean_accuracies + np_std_accuracies,
-	#			np_mean_accuracies - np_std_accuracies,
-	#			alpha = 0.3)
-	#plt.show()
-	fig.savefig(folder + '/' + dataset + '_cross_fold_mean_per_batch_errors.eps')
-
-
-def generate_learning_curves_smooth(folder, dataset, position):
-	lc_folders = []
-
-	# I use `1 epoch` and `full` because this shouldn't differ with more
-	# epochs.
-	lc_folders.append(folder + '/caes/' + dataset + '/relu/full/1epochs')
-	lc_folders.append(folder + '/caes/' + dataset + '/sigmoid/full/1epochs')
-	lc_folders.append(folder + '/cdbn/' + dataset + '/binary/full/1epochs')
-	lc_folders.append(folder + '/cdbn/' + dataset + '/gaussian/full/1epochs')
-	lc_folders.append(folder + '/random/' + dataset + '/relu/full/1epochs')
-	lc_folders.append(folder + '/random/' + dataset + '/sigmoid/full/1epochs')
-
-	# Labels
-	labels = ['CAES+ReLU', 'CAES+Sigmoid', 'BernoulliCDBN+Sigmoid',
-			'GaussianCDBN+Sigmoid', 'Random+ReLU', 'Random+Sigmoid']
-
-	# All of these should have the same length
-	np_x = None
-	mean_losses = []
-	mean_accuracies = []
-	mean_one_minus_accuracies = []
-	for f in lc_folders:
-		f_data = np.loadtxt(f + '/reduced_per_batch_metrics.csv',
-					delimiter = ',')
-
-		curr_loss = f_data[:, 0]
-		curr_accuracy = f_data[:, 2]
-		curr_one_minus_accuracy = f_data[:, 4]
-
-		np_x = np.array(range(0, f_data[:, 0].shape[0]))
-		curr_loss = interp1d(np_x, curr_loss,
-					kind = 'cubic')
-		curr_accuracy = interp1d(np_x, curr_accuracy,
-					kind = 'cubic')
-		curr_one_minus_accuracy = interp1d(np_x,
-					curr_one_minus_accuracy,
-					kind = 'cubic')
-
-		mean_losses.append(curr_loss)
-		mean_accuracies.append(curr_accuracy)
-		mean_one_minus_accuracies.append(curr_one_minus_accuracy)
-		print("Reading interpolations")
-
-	print("Will plot")
-
-	# Make images
-	#plt.plot(np_x, np_mean_one_minus_accuracies)
-	fig = plt.figure()
-	for i, acc in enumerate(mean_one_minus_accuracies):
-		plt.plot(np_x, acc(np_x), label = labels[i])
-	legend = plt.legend(loc = position, fontsize='medium')
-	for legobj in legend.legendHandles:
-		legobj.set_linewidth(5.0)
-
 	fig.savefig(folder + '/' + dataset +
-			'_cross_fold_mean_per_batch_errors_smooth.eps')
+			('_single_' if use_single_fold else '_cross_') +
+			'fold_mean_per_batch_errors.eps')
 
 
 def analyse_cross_experiment(results_folder):
@@ -180,7 +127,9 @@ def analyse_cross_experiment(results_folder):
 	generate_learning_curves(results_folder, 'cifar', 'lower left')
 	generate_learning_curves(results_folder, 'mnist', 'upper right')
 
-	generate_learning_curves_smooth(results_folder, 'cifar', 'lower left')
+	generate_learning_curves(results_folder, 'cifar', 'lower left', True)
+	generate_learning_curves(results_folder, 'mnist', 'upper right', True)
+
 
 def main():
 	args = parse_command_line()
