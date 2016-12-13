@@ -167,4 +167,3 @@ python3 scripts/analyse/analyse.py --single_experiment --with_per_epoch \
 
 python3 scripts/analyse/analyse.py --multiple_experiments results/cnn
 
-

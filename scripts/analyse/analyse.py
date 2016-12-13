@@ -4,8 +4,6 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.interpolate import interp1d
-
 def analyse_single_experiment(in_folder, analyse_accuracy = True,
 					by_epoch = False):
 	# TODO: This is very specific to my experiments. Find a more generic
